@@ -1,0 +1,249 @@
+classdef app < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        UIFigure              matlab.ui.Figure
+        GetInformationButton  matlab.ui.control.Button
+        Label_2               matlab.ui.control.Label
+        WindSpeedLabel        matlab.ui.control.Label
+        Label_3               matlab.ui.control.Label
+        HumidityLabel         matlab.ui.control.Label
+        Label                 matlab.ui.control.Label
+        TemperatureLabel      matlab.ui.control.Label
+        DropDown              matlab.ui.control.DropDown
+        SelectedCityLabel     matlab.ui.control.Label
+        AddCityButton         matlab.ui.control.Button
+        EditField             matlab.ui.control.EditField
+        UIAxes_3              matlab.ui.control.UIAxes
+        UIAxes_2              matlab.ui.control.UIAxes
+        UIAxes                matlab.ui.control.UIAxes
+    end
+
+    % Callbacks that handle component events
+    methods (Access = private)
+
+        % Button pushed function: GetInformationButton
+        function getInfo(app, event)
+            city = app.DropDown.Value;
+            apiKey = 'fc4d5916f90b8438588d109e64cc26e0';
+            % forecast URL
+            url = ['https://api.openweathermap.org/data/2.5/forecast?q=', city, '&appid=', apiKey, '&units=metric'];
+    
+            try
+                data = webread(url);
+            catch
+                error('Data extraction failed. Please check the city name and API key.');
+            end
+            
+            %Current weather data
+            url2 = ['https://api.openweathermap.org/data/2.5/weather?q=', city, '&appid=', apiKey, '&units=metric'];
+
+            try
+                data2 = webread(url2);
+            catch
+                error('Data extraction failed. Please check the city name and API key.');
+            end
+
+            currentTemperature = data2.main.temp; % Current Temp (°C)
+            currentHumidity = data2.main.humidity; % Current Hum. (%)
+            currentWindSpeed = data2.wind.speed; % Current Wind Speed(m/s)
+
+            
+            % copy 5 days weather list to list 
+            list = data.list;
+            
+            % Initialize empty arrays to store weather data
+            numOfData = length(list);
+            dates = NaT(1, numOfData);
+            temperatures = NaN(1, numOfData);
+            humidities = NaN(1, numOfData);
+            windSpeeds = NaN(1, numOfData);
+
+            %Check what format the data is in
+            isCellArray = iscell(list);
+            isStructArray = isstruct(list);
+            
+            for i = 1:numOfData
+                if(isCellArray==1)
+                    % take the dataset from list to item if it's cell
+                    item = list{i};
+                end
+                if(isStructArray==1)
+                    % take the dataset from list to item if it's struct
+                    item = list(i);
+                end
+                
+                % Store weather data for plotting to vectors/arrays
+                dates(i) = datetime(item.dt, 'ConvertFrom', 'posixtime'); % Convert POSIX timestamp to datetime and assign to forecast datetime field
+                temperatures(i) = item.main.temp;
+                humidities(i) = item.main.humidity;
+                windSpeeds(i) = item.wind.speed;
+            end
+            
+            % Plot the weather data
+            plot(app.UIAxes, dates, temperatures, 'LineWidth', 1.5); % Graph of Temp.
+            hold(app.UIAxes, 'on');
+            scatter(app.UIAxes, dates, temperatures, 'bo'); % Circle the data
+            hold(app.UIAxes, 'off');
+            xlabel(app.UIAxes, 'Date');
+            ylabel(app.UIAxes, 'Temperature (°C)');
+            title(app.UIAxes, ['Temperature Forecast for ',app.DropDown.Value]);
+            
+            plot(app.UIAxes_2, dates, humidities, 'LineWidth', 1.5); % Graph of Hum.
+            hold(app.UIAxes_2, 'on');
+            scatter(app.UIAxes_2, dates, humidities, 'bo');
+            hold(app.UIAxes_2, 'off');
+            xlabel(app.UIAxes_2, 'Date');
+            ylabel(app.UIAxes_2, 'Humidity (%)');
+            title(app.UIAxes_2, ['Humidity Forecast for ',app.DropDown.Value]);
+
+            plot(app.UIAxes_3, dates, windSpeeds, 'LineWidth', 1.5); % Graph of Wind Speed.
+            hold(app.UIAxes_3, 'on');
+            scatter(app.UIAxes_3, dates, windSpeeds, 'bo');
+            hold(app.UIAxes_3, 'off');
+            xlabel(app.UIAxes_3, 'Date');
+            ylabel(app.UIAxes_3, 'Wind Speed (m/s)');
+            title(app.UIAxes_3, ['Wind Speed Forecast for ',app.DropDown.Value]);
+
+            app.Label.Text = [num2str(currentTemperature),' °C']; %Print the current values
+            app.Label_3.Text = [num2str(currentHumidity), '%'];
+            app.Label_2.Text = [num2str(currentWindSpeed), ' m/s'];
+            
+        end
+
+        % Button pushed function: AddCityButton
+        function AddCityButtonPushed(app, event)
+            newCity = app.EditField.Value; %Store new city which written to editfield to newCity
+            app.DropDown.Items{end+1} = newCity; %Add the new city to end of dropdown
+            app.EditField.Value = ''; %Clear the editfield
+        end
+    end
+
+    % Component initialization
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create UIFigure and hide until all components are created
+            app.UIFigure = uifigure('Visible', 'off');
+            app.UIFigure.Position = [100 100 988 519];
+            app.UIFigure.Name = 'MATLAB App';
+
+            % Create UIAxes
+            app.UIAxes = uiaxes(app.UIFigure);
+            title(app.UIAxes, 'Temperature')
+            xlabel(app.UIAxes, 'Date')
+            ylabel(app.UIAxes, 'Temperature(°C)')
+            zlabel(app.UIAxes, 'Z')
+            app.UIAxes.Position = [30 298 296 201];
+
+            % Create UIAxes_2
+            app.UIAxes_2 = uiaxes(app.UIFigure);
+            title(app.UIAxes_2, 'Humidity')
+            xlabel(app.UIAxes_2, 'Date')
+            ylabel(app.UIAxes_2, 'Nem (%)')
+            zlabel(app.UIAxes_2, 'Z')
+            app.UIAxes_2.Position = [325 298 296 201];
+
+            % Create UIAxes_3
+            app.UIAxes_3 = uiaxes(app.UIFigure);
+            title(app.UIAxes_3, 'Wind Speed')
+            xlabel(app.UIAxes_3, 'Date')
+            ylabel(app.UIAxes_3, 'Wind Speed (m/s)')
+            zlabel(app.UIAxes_3, 'Z')
+            app.UIAxes_3.Position = [620 298 296 201];
+
+            % Create EditField
+            app.EditField = uieditfield(app.UIFigure, 'text');
+            app.EditField.Position = [128 186 100 22];
+
+            % Create AddCityButton
+            app.AddCityButton = uibutton(app.UIFigure, 'push');
+            app.AddCityButton.ButtonPushedFcn = createCallbackFcn(app, @AddCityButtonPushed, true);
+            app.AddCityButton.Position = [245 186 100 23];
+            app.AddCityButton.Text = 'Add City';
+
+            % Create SelectedCityLabel
+            app.SelectedCityLabel = uilabel(app.UIFigure);
+            app.SelectedCityLabel.Position = [371 186 79 22];
+            app.SelectedCityLabel.Text = 'Selected City:';
+
+            % Create DropDown
+            app.DropDown = uidropdown(app.UIFigure);
+            app.DropDown.Items = {'Ankara', 'İstanbul', 'Adana', 'İzmir', 'Antalya'};
+            app.DropDown.Position = [449 186 100 22];
+            app.DropDown.Value = 'Ankara';
+
+            % Create TemperatureLabel
+            app.TemperatureLabel = uilabel(app.UIFigure);
+            app.TemperatureLabel.FontSize = 18;
+            app.TemperatureLabel.Position = [128 97 118 31];
+            app.TemperatureLabel.Text = 'Temperature: ';
+
+            % Create Label
+            app.Label = uilabel(app.UIFigure);
+            app.Label.FontSize = 18;
+            app.Label.Position = [245 101 100 23];
+            app.Label.Text = '-';
+
+            % Create HumidityLabel
+            app.HumidityLabel = uilabel(app.UIFigure);
+            app.HumidityLabel.FontSize = 18;
+            app.HumidityLabel.Position = [431 97 85 31];
+            app.HumidityLabel.Text = 'Humidity: ';
+
+            % Create Label_3
+            app.Label_3 = uilabel(app.UIFigure);
+            app.Label_3.FontSize = 18;
+            app.Label_3.Position = [515 100 117 23];
+            app.Label_3.Text = '-';
+
+            % Create WindSpeedLabel
+            app.WindSpeedLabel = uilabel(app.UIFigure);
+            app.WindSpeedLabel.FontSize = 18;
+            app.WindSpeedLabel.Position = [725 97 109 31];
+            app.WindSpeedLabel.Text = 'Wind Speed: ';
+
+            % Create Label_2
+            app.Label_2 = uilabel(app.UIFigure);
+            app.Label_2.FontSize = 18;
+            app.Label_2.Position = [833 101 130 23];
+            app.Label_2.Text = '-';
+
+            % Create GetInformationButton
+            app.GetInformationButton = uibutton(app.UIFigure, 'push');
+            app.GetInformationButton.ButtonPushedFcn = createCallbackFcn(app, @getInfo, true);
+            app.GetInformationButton.Position = [419 43 159 36];
+            app.GetInformationButton.Text = 'Get Information';
+
+            % Show the figure after all components are created
+            app.UIFigure.Visible = 'on';
+        end
+    end
+
+    % App creation and deletion
+    methods (Access = public)
+
+        % Construct app
+        function app = app
+
+            % Create UIFigure and components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.UIFigure)
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.UIFigure)
+        end
+    end
+end
